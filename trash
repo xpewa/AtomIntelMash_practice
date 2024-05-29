@@ -1,0 +1,139 @@
+void pyrDown(cv::Mat const & in_img, cv::Mat & out_img) {
+    return cv::pyrDown(in_img, out_img);
+}
+
+void pyrUp(cv::Mat const & in_img, cv::Mat & out_img) {
+    return cv::pyrUp(in_img, out_img);
+}
+
+void GaussianBlur(cv::Mat & img) {
+    cv::Mat res(cv::Size(img.cols, img.rows), CV_8UC1, 255);
+    for (int y = 1; y < img.rows - 1; ++y) {
+        for (int x = 1; x < img.cols - 1; ++x) {
+            float k1 = 0.0625;
+            float k2 = 0.125;
+            float k3 = 0.0625;
+            float k4 = 0.125;
+            float k5 = 0.25;
+            float k6 = 0.125;
+            float k7 = 0.0625;
+            float k8 = 0.125;
+            float k9 = 0.0625;
+
+            int p1 = img.at<uchar>(y - 1, x - 1);
+            int p2 = img.at<uchar>(y - 1, x);
+            int p3 = img.at<uchar>(y - 1, x + 1);
+            int p4 = img.at<uchar>(y, x - 1);
+            int p5 = img.at<uchar>(y, x);
+            int p6 = img.at<uchar>(y, x + 1);
+            int p7 = img.at<uchar>(y + 1, x - 1);
+            int p8 = img.at<uchar>(y + 1, x);
+            int p9 = img.at<uchar>(y + 1, x + 1);
+
+            res.at<uchar>(y, x) = k1*p1 + k2*p2 + k3*p3 + k4*p4 + k5*p5 + k6*p6 + k7*p7 + k8*p8 + k9*p9;
+        }
+    }
+
+//    cv::imshow("GaussianBlur", res);
+//    cv::waitKey();
+    img = res;
+}
+
+void PrevittOperator(cv::Mat & img) {
+//    cv::Mat res(cv::Size(img.cols, img.rows), CV_8UC1, 255);
+    cv::Mat res = img;
+//    cv::Mat img = src;
+
+
+    std::vector<std::vector<int>> Gx(img.cols, std::vector<int>(img.rows, 0));
+    std::vector<std::vector<int>> Gy(img.cols, std::vector<int>(img.rows, 0));
+    std::vector<std::vector<int>> Hp(img.cols, std::vector<int>(img.rows, 0));
+
+//
+    for (int y = 1; y < img.rows - 1; ++y) {
+        for (int x = 1; x < img.cols - 1; ++x) {
+            int z1 = img.at<uchar>(y - 1, x - 1);
+            int z2 = img.at<uchar>(y - 1, x);
+            int z3 = img.at<uchar>(y - 1, x + 1);
+            int z4 = img.at<uchar>(y, x - 1);
+            int z6 = img.at<uchar>(y, x + 1);
+            int z7 = img.at<uchar>(y + 1, x - 1);
+            int z8 = img.at<uchar>(y + 1, x);
+            int z9 = img.at<uchar>(y + 1, x + 1);
+
+            int gx = (z7 + z8 + z9) - (z1 + z2 + z3);
+            int gy = (z3 + z6 + z9) - (z1 + z4 + z7);
+            Gx[x][y] = gx;
+            Gy[x][y] = gy;
+//            img.at<uchar>(y, x) = round(sqrt(gx*gx + gy*gy));
+
+//            int k_simular = 0.1;
+
+//            float k = 0.1;
+//            int gp1 = gx*gx;
+//            int gp2 = gx*gy;
+//            int gp3 = gy*gy;
+//            int hp = (gp1 * gp3 - gp2*gp2) - k*(gp1 + gp3)*(gp1 + gp3);
+//            Hp[x][y] = hp;
+        }
+    }
+
+    for (int x = 10; x < Gx.size() - 10; ++x) {
+        for (int y = 10; y < Gx[0].size() - 10; ++y) {
+            float k = 0.2; // 0.2
+            int gp1 = 0;
+            int gp2 = 0;
+            int gp3 = 0;
+
+            for (int i = x - 1; i < x + 2; ++i) {
+                for (int j = y - 1; j < y + 2; ++j) {
+                    int gx = Gx[i][j];
+                    int gy = Gy[i][j];
+                    gp1 += gx*gx;
+                    gp2 += gx*gy;
+                    gp3 += gy*gy;
+                }
+            }
+
+            int hp = (gp1 * gp3 - gp2*gp2) - k*(gp1 + gp3)*(gp1 + gp3);
+            Hp[x][y] = hp;
+        }
+    }
+
+
+    for (int i = 0; i < Hp.size(); ++ i) {
+        for (int j = 0; j < Hp[0].size(); ++j) {
+            if (Hp[i][j] > 1000000) { //1000000000, 100000, 100000000 !(1000000)!
+//                std::cout << Hp[i][j] << ' ';
+                cv::Point centerCircle(i,j);
+                cv::Scalar colorCircle(0);
+
+                cv::circle(res, centerCircle, 10, colorCircle, cv::FILLED);
+            }
+            else {
+//                std::cout << 0 << ' ';
+            }
+//            std::cout << Hp[i][j] << ' ';
+        }
+//        std::cout << std::endl;
+    }
+    img = res;
+}
+
+void find_points(cv::Mat const & src) {
+    uint pyramid_level = 0;
+//
+    cv::Mat img = src;
+    for (int i = 0; i < pyramid_level; ++i) {
+        pyrDown(img, img);
+    }
+
+    for (int i = 0; i < 10; ++i) {
+        GaussianBlur(img);
+    }
+
+    PrevittOperator(img);
+
+    cv::imshow("find_points", img);
+    cv::waitKey();
+}
